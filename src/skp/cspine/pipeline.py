@@ -477,6 +477,19 @@ def _depth_features(out: dict[str, torch.Tensor]) -> torch.Tensor:
     )
 
 
+def _requested_localization_levels(
+    localize_levels: Iterable[str], available_levels: Iterable[str]
+) -> list[str]:
+    requested_levels = list(localize_levels)
+    unknown_levels = sorted(set(requested_levels) - set(LEVELS))
+    if unknown_levels:
+        raise ValueError("Unknown localization levels: " + ",".join(unknown_levels))
+    available = set(available_levels)
+    return [
+        level for level in dict.fromkeys(requested_levels) if level in available
+    ]
+
+
 class CervicalSpineFracturePredictor:
     def __init__(self, model_root: Path, manifest: dict[str, Any], device: str):
         self.model_root = model_root
@@ -624,9 +637,9 @@ class CervicalSpineFracturePredictor:
         selected_levels: list[str] = []
         if localize:
             if localize_levels is not None:
-                selected_levels = [
-                    level for level in localize_levels if level in crop_by_level
-                ]
+                selected_levels = _requested_localization_levels(
+                    localize_levels, crop_by_level
+                )
             else:
                 selected_levels = [
                     level

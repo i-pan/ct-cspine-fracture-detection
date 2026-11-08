@@ -11,8 +11,10 @@ from skp.cspine.pipeline import (
     LevelLocalization,
     _make_adjacent_channels,
     _make_stack3_channels,
+    _requested_localization_levels,
     _resampled_source_indices,
 )
+from skp.cspine import segmentation_inference
 
 
 def _series(depth: int = 3) -> DICOMSeries:
@@ -130,3 +132,46 @@ def test_artifact_manifest_is_typed_and_versioned(tmp_path: Path):
     )
     with pytest.raises(ValueError, match="model_type"):
         read_artifact_manifest(tmp_path, "cspine-fracture-classification")
+
+
+def test_oof_segmentation_inference_passes_explicit_checkpoint_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    states = []
+
+    def fake_load_model(_config, _checkpoint, _device, *, checkpoint_state):
+        states.append(checkpoint_state)
+        return object(), object()
+
+    monkeypatch.setattr(segmentation_inference, "_load_model", fake_load_model)
+    slices = __import__("pandas").DataFrame(columns=["split", "study_uid"])
+    studies = __import__("pandas").DataFrame(
+        columns=["StudyInstanceUID", "fold"]
+    )
+
+    segmentation_inference.infer_segmentation_masks(
+        slices,
+        studies,
+        {0: tmp_path / "fold0.ckpt"},
+        tmp_path,
+        device="cpu",
+        checkpoint_state="ema",
+    )
+
+    assert states == ["ema"]
+
+
+def test_segmentation_inference_config_drops_training_initializers():
+    cfg = segmentation_inference._inference_config(
+        "cspine_segmentation_x3d_s_totalseg_finetune"
+    )
+    assert cfg.pretrained is False
+    assert cfg.load_pretrained_model is None
+
+
+def test_localization_override_rejects_unknown_levels():
+    with pytest.raises(ValueError, match="C8"):
+        _requested_localization_levels(["C2", "C8"], ["C2"])
+    assert _requested_localization_levels(
+        ["C2", "C2", "C5"], ["C2"]
+    ) == ["C2"]

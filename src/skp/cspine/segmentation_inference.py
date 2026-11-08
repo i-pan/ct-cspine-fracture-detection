@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from importlib import import_module
 from pathlib import Path
@@ -9,7 +10,22 @@ import pandas as pd
 import torch
 from scipy import ndimage
 
+from skp.cspine.artifacts import checkpoint_model_state
 from skp.cspine.crops import load_png_volume, resize_volume
+
+
+def _inference_config(config_name: str):
+    cfg = copy.deepcopy(import_module(f"skp.configs.{config_name}").cfg)
+    cfg.pretrained = False
+    for name in (
+        "load_pretrained_model",
+        "load_pretrained_backbone",
+        "load_pretrained_encoder",
+        "load_pretrained_decoder",
+    ):
+        if hasattr(cfg, name):
+            setattr(cfg, name, None)
+    return cfg
 
 
 def keep_largest_components(mask: np.ndarray, num_levels: int = 7) -> np.ndarray:
@@ -52,26 +68,22 @@ def topology_anomaly_levels(
     return sorted(anomalous)
 
 
-def _load_model(config_name: str, checkpoint: str | Path, device: torch.device):
-    config_module = import_module(f"skp.configs.{config_name}")
-    cfg = config_module.cfg.__deepcopy__()
-    cfg.pretrained = False
+def _load_model(
+    config_name: str,
+    checkpoint: str | Path,
+    device: torch.device,
+    *,
+    checkpoint_state: str,
+):
+    cfg = _inference_config(config_name)
     model_module = import_module(f"skp.models.{cfg.model}")
     model = model_module.Net(cfg)
-    payload = torch.load(checkpoint, map_location="cpu", weights_only=False)
-    state = payload.get("state_dict", payload)
-    if any(key.startswith("model.") for key in state):
-        state = {key: value for key, value in state.items() if key.startswith("model.")}
-    state = {
-        (key[len("model.") :] if key.startswith("model.") else key): value
-        for key, value in state.items()
-    }
-    missing, unexpected = model.load_state_dict(state, strict=False)
-    if missing or unexpected:
-        raise ValueError(
-            f"Checkpoint/model mismatch for {checkpoint}: "
-            f"missing={missing}, unexpected={unexpected}"
-        )
+    if checkpoint_state not in {"raw", "ema"}:
+        raise ValueError(f"Unknown checkpoint state: {checkpoint_state}")
+    state = checkpoint_model_state(
+        checkpoint, use_ema=checkpoint_state == "ema"
+    )
+    model.load_state_dict(state, strict=True)
     return model.eval().to(device), cfg
 
 
@@ -89,6 +101,7 @@ def infer_segmentation_masks(
     ensemble_on_qc_failure: bool = False,
     study_folds: set[int] | None = None,
     native_grid: bool = True,
+    checkpoint_state: str = "raw",
 ) -> Path:
     """Export native-grid masks for crop generation.
 
@@ -97,7 +110,12 @@ def infer_segmentation_masks(
     """
     torch_device = torch.device(device)
     models = {
-        fold: _load_model(config_name, path, torch_device)
+        fold: _load_model(
+            config_name,
+            path,
+            torch_device,
+            checkpoint_state=checkpoint_state,
+        )
         for fold, path in checkpoints.items()
     }
     mask_root = Path(output_root) / "vertebra_masks" / (

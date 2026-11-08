@@ -13,7 +13,11 @@ from timm import create_model
 
 from skp.configs.base import Config
 from skp.models.classification.mil_3d import log_sum_exp_pool
-from skp.models.utils import filter_weights_by_prefix, torch_load_weights
+from skp.models.utils import (
+    filter_weights_by_prefix,
+    torch_load_weights,
+    verify_state_dict_sha256,
+)
 
 
 class Net(nn.Module):
@@ -29,6 +33,11 @@ class Net(nn.Module):
             global_pool="avg",
             in_chans=cfg.num_input_channels,
         )
+        expected_hash = cfg.get("pretrained_state_sha256")
+        if cfg.pretrained and expected_hash:
+            verify_state_dict_sha256(
+                self.backbone.state_dict(), expected_hash, name=cfg.backbone
+            )
         if cfg.get("enable_gradient_checkpointing", False):
             self.backbone.set_grad_checkpointing()
 

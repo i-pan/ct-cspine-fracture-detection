@@ -14,11 +14,13 @@
     },
     "x3d_s": {
       "provider": "pytorchvideo==0.1.5",
-      "state_dict_sha256": "3653641a341a2d157042e7d226786ef2ba67f4620451e2d13af8105b5c1190ab"
+      "canonical_state_sha256": "7b2faeebdd0c6c7943efd412068b76138099ab1bd55df440dbe9c0af215a4717",
+      "historical_state_artifact_sha256": "3653641a341a2d157042e7d226786ef2ba67f4620451e2d13af8105b5c1190ab"
     },
     "maxvit_tiny_tf_384.in1k_4ch": {
       "provider": "timm==1.0.27",
-      "state_dict_sha256": "d361fc543db2f5076adbca382a65e8620ef09de8e93a6ed060cd86112d94f20f"
+      "canonical_state_sha256": "4412868f5969e3da644d6d567a7640b8f860ebf4568eafaad688e54bd211b6a8",
+      "historical_state_artifact_sha256": "d361fc543db2f5076adbca382a65e8620ef09de8e93a6ed060cd86112d94f20f"
     }
   },
   "dataset": {
@@ -37,7 +39,8 @@
       "run_root": "cspine_segmentation_x3d_s_totalseg_finetune/cspine-seg-x3ds-ts-finetune-v1",
       "folds": [0, 1, 2, 3, 4],
       "checkpoint": "best.ckpt",
-      "checkpoint_state": "ema"
+      "checkpoint_state": "ema",
+      "training_crop_checkpoint_state": "raw"
     },
     "families": {
       "d32": {

@@ -28,10 +28,12 @@ TotalSegmentator pseudo-labels, then fine-tuned on the 87 manual masks. The
 five released folds use EMA weights because validation and checkpoint selection
 also use EMA.
 
-For crop generation, each study is initially inferred by the model that held
-out its fold. Topology failures are retried with the five-fold ensemble. Masks
-are saved on the compact grid and mapped back to native coordinates when crops
-are constructed.
+For historical training-crop reproduction, each study is initially inferred by
+the model that held out its fold using the raw checkpoint state. Topology
+failures are retried with the five-fold raw-state ensemble. This is distinct
+from the released segmentation package, which uses the better validated EMA
+state. Masks are saved on the compact grid and mapped back to native coordinates
+when crops are constructed.
 
 ## Per-vertebra classification
 

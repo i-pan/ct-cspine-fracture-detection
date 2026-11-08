@@ -16,7 +16,7 @@ from torchvision.models.video import (
     MViT_V2_S_Weights,
 )
 
-from skp.models.utils import change_num_input_channels
+from skp.models.utils import change_num_input_channels, verify_state_dict_sha256
 
 """
 X3D
@@ -66,6 +66,11 @@ class X3DEncoder(nn.Module):
             kwargs_dict["activation"] = nn.SiLU
 
         net = getattr(hub, self.cfg.backbone.replace("_gn", ""))(**kwargs_dict)
+        expected_hash = self.cfg.get("pretrained_state_sha256")
+        if self.cfg.pretrained and expected_hash:
+            verify_state_dict_sha256(
+                net.state_dict(), expected_hash, name=self.cfg.backbone
+            )
 
         self.features = net.blocks[:-1]
 

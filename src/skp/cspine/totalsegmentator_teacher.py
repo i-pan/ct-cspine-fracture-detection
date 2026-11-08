@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import tempfile
 from ast import literal_eval
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 
 import cv2
@@ -20,6 +22,40 @@ from skp.cspine.segmentations import load_rsna_segmentation
 
 
 TOTALSEGMENTATOR_VERSION = "2.16.0"
+
+TOTALSEGMENTATOR_DATASET292_HASHES = {
+    "fold_0/checkpoint_final.pth": "7022f71829ef00aa14d790a7667bc18eb1691f2fe5b0a38c475862abc84c2457",
+    "plans.json": "72fcde2fa59183f65b92fc86a12467acd81511d93d8d2577608550ad0c1938cd",
+    "dataset.json": "5c967bfe82c846a6491473706e3c5d322f470ed4fce2eb5047a22c702ae64c79",
+}
+
+
+@lru_cache(maxsize=1)
+def verify_totalsegmentator_weights() -> None:
+    home = Path(
+        os.environ.get("TOTALSEG_HOME_DIR", Path.home() / ".totalsegmentator")
+    )
+    root = (
+        home
+        / "nnunet/results/Dataset292_TotalSegmentator_part2_vertebrae_1532subj"
+        / "nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres"
+    )
+    for relative, expected in TOTALSEGMENTATOR_DATASET292_HASHES.items():
+        path = root / relative
+        if not path.is_file():
+            raise FileNotFoundError(f"Missing TotalSegmentator weight artifact: {path}")
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            while chunk := handle.read(8 * 1024 * 1024):
+                digest.update(chunk)
+        actual = digest.hexdigest()
+        if actual != expected:
+            raise ValueError(
+                f"TotalSegmentator weight hash mismatch for {path}: "
+                f"expected {expected}, got {actual}."
+            )
+
+
 TOTALSEGMENTATOR_TASK = "total"
 TOTALSEGMENTATOR_RESAMPLING_ORDER = 3
 
@@ -233,6 +269,7 @@ def _run_teacher(
             raise RuntimeError(
                 f"TotalSegmentator failed for {study_uid} on GPU {device}:\n{tail}"
             )
+        verify_totalsegmentator_weights()
         raw = np.asarray(nib.load(segmentation_path).get_fdata(), dtype=np.uint8)
         native_mask = remap_totalsegmentator_mask(
             raw.transpose(2, 1, 0), level_ids

@@ -47,7 +47,10 @@ scripts/setup_totalsegmentator.sh \
 
 The pinned teacher environment targets CUDA 12.4. On first use,
 TotalSegmentator downloads its `total` task weights. Their expected Dataset292
-hashes are recorded in `release/final-v1.json`.
+hashes are recorded in `release/final-v1.json` and verified after the first
+teacher invocation downloads them. Selected X3D-S and four-channel MaxViT
+pretrained states are hashed canonically and checked during model construction;
+training fails before optimization if an upstream state changes.
 
 ## 2. PNGs, folds, and manual segmentation cache
 
@@ -116,8 +119,10 @@ uv run cspine-evaluate-segmentation-states \
   --output "$CSPINE_EXPERIMENT_ROOT/segmentation-state-evaluation.json"
 ```
 
-Validation and checkpoint selection used EMA. This comparison records the
-matched raw result rather than attributing the EMA Dice to raw weights.
+Validation, release inference, and checkpoint selection use EMA. The historical
+OOF masks used to train the selected downstream pipeline were generated from
+each checkpoint's raw state, so crop reproduction keeps that state explicit.
+This comparison records both states without conflating their roles.
 
 ## 4. OOF masks and native-depth vertebral crops
 
@@ -133,6 +138,7 @@ uv run cspine-infer-segmenter \
   --checkpoint-fold 2="$SEG_RUN/fold2/checkpoints/best.ckpt" \
   --checkpoint-fold 3="$SEG_RUN/fold3/checkpoints/best.ckpt" \
   --checkpoint-fold 4="$SEG_RUN/fold4/checkpoints/best.ckpt" \
+  --checkpoint-state raw \
   --ensemble-on-qc-failure --compact-grid
 
 uv run cspine-build-crops \

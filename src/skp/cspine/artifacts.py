@@ -118,11 +118,18 @@ def checkpoint_model_state(
             raise KeyError(f"Checkpoint has no EMA state: {checkpoint}")
     else:
         state = payload.get("state_dict", payload)
-    result = {
-        key.removeprefix("model."): value.detach().cpu().contiguous()
-        for key, value in state.items()
-        if key.startswith("model.") and not key.startswith("model.criterion.")
-    }
+    has_lightning_prefix = any(key.startswith("model.") for key in state)
+    result = {}
+    for key, value in state.items():
+        if not isinstance(value, torch.Tensor):
+            continue
+        if has_lightning_prefix:
+            if not key.startswith("model.") or key.startswith("model.criterion."):
+                continue
+            key = key.removeprefix("model.")
+        elif key.startswith("criterion."):
+            continue
+        result[key] = value.detach().cpu().contiguous()
     if not result:
         raise ValueError(f"No model weights found in {checkpoint}")
     return result

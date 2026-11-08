@@ -617,6 +617,46 @@ state. These results support the manifest as the authoritative selection
 contract. Functional source revision `3d9d8946d6b86692d372efbb3630099c7db49611`
 is now recorded; final HF repository IDs remain intentionally unset.
 
+## 2026-11-08: Make segmentation checkpoint state explicit during crop generation
+
+### Context
+
+Final-v1 release inference selects EMA segmentation weights, while the OOF masks
+used to train the selected downstream models came from raw Lightning
+`state_dict` weights. The OOF-mask CLI loaded raw implicitly, leaving the two
+roles undocumented and impossible to select explicitly.
+
+### Decision
+
+Add an explicit `raw`/`ema` checkpoint-state option to segmentation inference.
+Select `raw` in the crop-reproduction guide so retraining uses the same input
+contract as the selected MIL/localization/series artifacts, and retain `ema` for
+the released segmentation inference ensemble. Record both states in the release
+manifest. Use the shared strict checkpoint-state loader so EMA absence or model
+incompatibility fails closed.
+
+### Consequences
+
+Final-v1 retraining reproductions generate held-out and topology-fallback masks
+with raw weights, matching the historical crop cache; end-to-end released
+inference uses EMA. Tests use deliberately different raw and EMA tensors and
+verify that the OOF inference entry point propagates the explicit selection.
+Inference construction clears
+training-only initialization paths before loading the selected state, removing
+a hidden dependency on the earlier pretraining artifact.
+
+The same review found that the series base config overrode the documented
+`MLFLOW_TRACKING_URI` with an undocumented `CSPINE_MLFLOW_TRACKING_URI` and a
+localhost default. Remove that override so all four series variants inherit the
+standard fail-closed tracking URI contract used by the rest of the repository.
+
+Recorded initialization hashes are now executable contracts rather than
+provenance-only notes. Selected X3D-S and adapted four-channel MaxViT states are
+hashed over ordered tensor names, dtypes, shapes, and bytes during construction.
+Dataset292 checkpoint, plans, and dataset files are verified after
+TotalSegmentator downloads them on its first teacher invocation. A mismatch
+fails before training consumes the resulting initialization or pseudo-label.
+
 ## Decision-entry template
 
 ### YYYY-MM-DD: Decision title

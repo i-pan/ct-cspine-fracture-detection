@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 
 from skp.configs import Config
+from skp.configs.cspine_series_d32 import cfg as series_cfg
 from skp.cspine.series_features import (
     assemble_series_cache,
     assemble_series_depth_cache,
@@ -16,6 +17,10 @@ from skp.datasets.cspine_series_features import Dataset
 from skp.losses.cspine import SeriesCompetitionLoss
 from skp.models.classification.cspine_series import Net
 from skp.models.classification.cspine_series_depth import Net as DepthNet
+
+
+def test_series_config_uses_standard_mlflow_environment_contract():
+    assert series_cfg.mlflow_tracking_uri is None
 
 
 def test_series_competition_loss_matches_reshaped_weighted_bce():

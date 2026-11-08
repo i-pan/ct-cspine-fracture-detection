@@ -20,6 +20,7 @@ cfg.task = "segmentation_3d"
 cfg.model = "segmentation.base_3d"
 cfg.dataset = "cspine_segmentation_3d"
 cfg.backbone = "x3d_s"
+cfg.pretrained_state_sha256 = "7b2faeebdd0c6c7943efd412068b76138099ab1bd55df440dbe9c0af215a4717"
 cfg.pretrained = True
 cfg.num_input_channels = 1
 cfg.num_classes = 8

@@ -1,6 +1,30 @@
+import hashlib
+
 import torch
 import torch.nn as nn
 from typing import Dict
+
+
+def state_dict_sha256(state: Dict[str, torch.Tensor]) -> str:
+    """Hash tensor names, dtypes, shapes, and bytes in a stable order."""
+    digest = hashlib.sha256()
+    for name in sorted(state):
+        tensor = state[name].detach().cpu().contiguous()
+        digest.update(name.encode())
+        digest.update(str(tensor.dtype).encode())
+        digest.update(str(tuple(tensor.shape)).encode())
+        digest.update(tensor.numpy().tobytes())
+    return digest.hexdigest()
+
+
+def verify_state_dict_sha256(
+    state: Dict[str, torch.Tensor], expected: str, *, name: str
+) -> None:
+    actual = state_dict_sha256(state)
+    if actual != expected:
+        raise ValueError(
+            f"Pretrained {name} state hash mismatch: expected {expected}, got {actual}."
+        )
 
 
 def torch_load_weights(path: str) -> Dict[str, torch.Tensor]:

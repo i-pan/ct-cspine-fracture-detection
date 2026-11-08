@@ -244,6 +244,12 @@ def infer_segmenter_main() -> None:
     parser.add_argument("--config", default="cspine_segmentation_x3d_s")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--split", default="train")
+    parser.add_argument(
+        "--checkpoint-state",
+        choices=["raw", "ema"],
+        default="raw",
+        help="Model state to load from each Lightning checkpoint.",
+    )
     parser.add_argument("--ensemble", action="store_true")
     parser.add_argument("--ensemble-on-qc-failure", action="store_true")
     parser.add_argument(
@@ -278,6 +284,7 @@ def infer_segmenter_main() -> None:
             else None
         ),
         native_grid=not args.compact_grid,
+        checkpoint_state=args.checkpoint_state,
     )
     print(f"Wrote masks to {path}")
 

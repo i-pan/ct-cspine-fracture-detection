@@ -22,11 +22,6 @@ work_root = os.environ.get(
 cfg.save_dir = os.environ.get(
     "CSPINE_EXPERIMENT_ROOT", "./experiments"
 )
-# Do not inherit a workstation-local SQLite URI: series runs must use the
-# shared fail-closed tracking server and keep artifacts off the root volume.
-cfg.mlflow_tracking_uri = os.environ.get(
-    "CSPINE_MLFLOW_TRACKING_URI", "http://127.0.0.1:5001"
-)
 cfg.project = "cspine_series_fracture_classification"
 cfg.task = "classification"
 cfg.model = "classification.cspine_series"

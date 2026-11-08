@@ -666,3 +666,20 @@ successfully but underperformed. A failed launch is not architecture evidence.
   for raw weights, winning four of five folds. This also corrected an older
   0.8078 summary that was inconsistent with both the selected checkpoint logs
   (0.80328 mean) and the matched re-evaluation. EMA remains the release state.
+- The final publication review found that OOF mask generation loaded the raw
+  state implicitly while final-v1 release inference selects EMA. The inference
+  CLI now exposes an explicit `--checkpoint-state`; the reproduction command
+  selects `raw` to match the crop cache used by the selected downstream models,
+  while the released segmentation package remains EMA. A discriminating
+  raw-versus-EMA test protects the two-state contract.
+  Inference model construction also clears training-only initialization paths,
+  so loading a selected checkpoint no longer depends on retaining its earlier
+  pseudo-label-pretraining checkpoint at the original filesystem location.
+- The review also found that series configs overrode the documented
+  `MLFLOW_TRACKING_URI` with an undocumented localhost default. The override
+  was removed; all four inherited series configs now use the standard
+  fail-closed tracking environment contract.
+- Promoted the selected pretrained-state hashes from provenance to executable
+  checks. X3D-S and four-channel MaxViT verify canonical tensor-state hashes at
+  construction, and the TotalSegmentator teacher verifies all three recorded
+  Dataset292 artifacts after download.

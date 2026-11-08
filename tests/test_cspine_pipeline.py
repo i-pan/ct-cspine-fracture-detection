@@ -6,6 +6,7 @@ import pytest
 import torch
 
 from skp.configs import Config
+from skp.cspine import totalsegmentator_teacher
 from skp.cspine.crops import (
     map_bounds_to_shape,
     resize_depth_and_fit_axial,
@@ -472,6 +473,39 @@ def test_totalsegmentator_qc_accepts_serialized_missing_levels():
         }
     )
     assert len(build_totalsegmentator_qc_manifest(samples)) == 1
+
+
+def test_totalsegmentator_weight_hashes_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    root = (
+        tmp_path
+        / "nnunet/results/Dataset292_TotalSegmentator_part2_vertebrae_1532subj"
+        / "nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres"
+    )
+    payloads = {
+        "fold_0/checkpoint_final.pth": b"checkpoint",
+        "plans.json": b"plans",
+        "dataset.json": b"dataset",
+    }
+    import hashlib
+
+    hashes = {}
+    for relative, payload in payloads.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        hashes[relative] = hashlib.sha256(payload).hexdigest()
+    monkeypatch.setenv("TOTALSEG_HOME_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        totalsegmentator_teacher, "TOTALSEGMENTATOR_DATASET292_HASHES", hashes
+    )
+    totalsegmentator_teacher.verify_totalsegmentator_weights.cache_clear()
+    totalsegmentator_teacher.verify_totalsegmentator_weights()
+    (root / "plans.json").write_bytes(b"changed")
+    totalsegmentator_teacher.verify_totalsegmentator_weights.cache_clear()
+    with pytest.raises(ValueError, match="hash mismatch"):
+        totalsegmentator_teacher.verify_totalsegmentator_weights()
 
 
 def test_segmentation_pretraining_uses_manual_validation_file(tmp_path: Path):
