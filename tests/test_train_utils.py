@@ -140,7 +140,7 @@ def test_mlflow_preflight_allows_local_only_with_explicit_opt_in(tmp_path):
             save_dir=tmp_path,
         )
 
-    assert uri == (tmp_path / "mlruns").resolve().as_uri()
+    assert uri == f"sqlite:///{(tmp_path / 'mlflow.db').resolve().as_posix()}"
 
 
 def test_mlflow_preflight_checks_remote_backend(monkeypatch, tmp_path):
@@ -202,7 +202,7 @@ def test_mlflow_preflight_can_fallback_after_explicit_authorization(
             save_dir=tmp_path,
         )
 
-    assert uri == (tmp_path / "mlruns").resolve().as_uri()
+    assert uri == f"sqlite:///{(tmp_path / 'mlflow.db').resolve().as_posix()}"
 
 
 def test_mlflow_dry_run_is_an_explicit_local_mode(tmp_path):
@@ -213,7 +213,9 @@ def test_mlflow_dry_run_is_an_explicit_local_mode(tmp_path):
         dry_run=True,
     )
 
-    assert uri == (tmp_path / "mlflow_dry_run").resolve().as_uri()
+    assert uri == (
+        f"sqlite:///{(tmp_path / 'mlflow_dry_run.db').resolve().as_posix()}"
+    )
 
 
 def test_environment_file_is_gitignored():

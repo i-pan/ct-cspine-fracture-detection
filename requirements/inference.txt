@@ -1,0 +1,12 @@
+numpy>=1.26
+pandas>=2.2
+scipy>=1.12
+opencv-python-headless>=4.9
+pydicom>=2.4
+torch @ https://download.pytorch.org/whl/cu124/torch-2.6.0%2Bcu124-cp311-cp311-linux_x86_64.whl
+torchvision @ https://download.pytorch.org/whl/cu124/torchvision-0.21.0%2Bcu124-cp311-cp311-linux_x86_64.whl
+timm>=1.0
+einops>=0.7
+pytorchvideo>=0.1.5
+huggingface-hub>=1.0
+safetensors>=0.5

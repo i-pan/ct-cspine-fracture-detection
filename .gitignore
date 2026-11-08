@@ -8,6 +8,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+htmlcov/
 .ipynb_checkpoints/
 
 build/
@@ -22,10 +24,27 @@ mlruns/
 checkpoints/
 experiments/
 data/
+artifacts/
+huggingface/
+docs/cleanup/
 
 *.ckpt
 *.pt
 *.pth
 *.onnx
+*.safetensors
+
+# Competition data and generated medical-imaging artifacts must never be
+# published. Small deliberate test fixtures can be force-added when needed.
+*.dcm
+*.nii
+*.nii.gz
+*.parquet
+*.npy
+*.npz
+train_images/
+test_images/
+vertebra_masks/
+vertebra_crops*/
 
 .DS_Store

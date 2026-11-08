@@ -1,9 +1,14 @@
 [project]
 name = "skp"
 version = "0.1.0"
-description = "Deep learning experiment framework for rapid prototyping."
+description = "Reproducible cervical spine fracture detection from CT volumes."
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/i-pan/ct-cspine-fracture-detection"
 
 [dependency-groups]
 dev = [
@@ -31,8 +36,14 @@ train = [
     "torchvision==0.21.0+cu124",
 ]
 medical = [
+    "huggingface-hub>=1.0",
     "monai>=1.4",
+    "nibabel>=5.2",
     "pydicom>=2.4",
+    "pylibjpeg>=2.0",
+    "pylibjpeg-libjpeg>=2.1",
+    "pylibjpeg-openjpeg>=2.4",
+    "safetensors>=0.5",
 ]
 video = [
     "pytorchvideo>=0.1.5",
@@ -43,6 +54,27 @@ wds = [
 
 [project.scripts]
 skp-train = "skp.train:main"
+cspine-build-crops = "skp.cspine.cli:build_crops_main"
+cspine-build-folds = "skp.cspine.cli:build_folds_main"
+cspine-build-manifest = "skp.cspine.cli:build_manifest_main"
+cspine-build-localization-manifest = "skp.cspine.cli:build_localization_manifest_main"
+cspine-build-segmentation-cache = "skp.cspine.cli:build_segmentation_cache_main"
+cspine-build-thick-series = "skp.cspine.cli:build_thick_series_main"
+cspine-convert-dicom = "skp.cspine.cli:convert_dicom_main"
+cspine-evaluate = "skp.cspine.cli:evaluate_main"
+cspine-evaluate-slice-localization = "skp.cspine.cli:evaluate_slice_localization_main"
+cspine-evaluate-slice-localization-cv = "skp.cspine.cli:evaluate_slice_localization_cv_main"
+cspine-evaluate-localization-ensemble = "skp.cspine.localization_evaluation:main"
+cspine-extract-series-features = "skp.cspine.series_features:main"
+cspine-evaluate-series-oof = "skp.cspine.series_oof:main"
+cspine-evaluate-segmentation-states = "skp.cspine.segmentation_state_evaluation:main"
+cspine-generate-pseudolabels = "skp.cspine.cli:generate_pseudolabels_main"
+cspine-generate-slice-pseudolabels-cv = "skp.cspine.cli:generate_slice_pseudolabels_cv_main"
+cspine-infer-segmenter = "skp.cspine.cli:infer_segmenter_main"
+cspine-export-hf = "skp.cspine.hf_export:main"
+cspine-predict = "skp.cspine.predict_cli:main"
+cspine-halton-sweep = "skp.cspine.halton_sweep:main"
+cspine-totalsegmentator-teacher = "skp.cspine.cli:totalsegmentator_teacher_main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

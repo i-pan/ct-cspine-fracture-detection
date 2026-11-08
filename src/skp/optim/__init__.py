@@ -86,7 +86,8 @@ def get_scheduler(cfg: Config, optimizer: Optimizer) -> LRScheduler:
     )
 
     # Update the step count in params
-    scheduler_params.setdefault(max_step_param, steps_per_epoch * cfg.num_epochs)
+    scheduler_epochs = cfg.get("scheduler_num_epochs") or cfg.num_epochs
+    scheduler_params.setdefault(max_step_param, steps_per_epoch * scheduler_epochs)
 
     # --- Scheduler Selection ---
     if cfg.scheduler == "LinearWarmupCosineAnnealingLR":

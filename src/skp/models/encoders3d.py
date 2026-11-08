@@ -55,22 +55,17 @@ class X3DEncoder(nn.Module):
             assert not self.cfg.pretrained, "pretrained not supported for GroupNorm"
 
         # Set up X3D backbone
-        if self.cfg.pretrained:
-            net = torch.hub.load(
-                "facebookresearch/pytorchvideo",
-                model=self.cfg.backbone,
-                pretrained=True,
-            )
-        else:
-            from pytorchvideo.models import hub
+        # Use the lockfile-pinned pytorchvideo package rather than executing
+        # mutable code from the head of a remote Torch Hub repository.
+        from pytorchvideo.models import hub
 
-            kwargs_dict = {"pretrained": False}
-            if self.cfg.backbone.endswith("_gn"):
-                norm = GroupNorm
-                kwargs_dict["norm"] = norm
-                kwargs_dict["activation"] = nn.SiLU
+        kwargs_dict = {"pretrained": bool(self.cfg.pretrained)}
+        if self.cfg.backbone.endswith("_gn"):
+            norm = GroupNorm
+            kwargs_dict["norm"] = norm
+            kwargs_dict["activation"] = nn.SiLU
 
-            net = getattr(hub, self.cfg.backbone.replace("_gn", ""))(**kwargs_dict)
+        net = getattr(hub, self.cfg.backbone.replace("_gn", ""))(**kwargs_dict)
 
         self.features = net.blocks[:-1]
 
@@ -155,14 +150,9 @@ class CSNEncoder(nn.Module):
         super().__init__()
         self.cfg = cfg
 
-        if self.cfg.pretrained:
-            net = torch.hub.load(
-                "facebookresearch/pytorchvideo", model="csn_r101", pretrained=True
-            )
-        else:
-            from pytorchvideo.models import hub
+        from pytorchvideo.models import hub
 
-            net = hub.csn_r101(pretrained=False)
+        net = hub.csn_r101(pretrained=bool(self.cfg.pretrained))
 
         self.features = net.blocks[:5]
 

@@ -69,6 +69,27 @@ def test_log_sum_exp_pool_ignores_masked_slices():
         mil_3d.log_sum_exp_pool(slice_logits, mask=torch.zeros_like(mask))
 
 
+def test_log_mean_exp_uses_each_samples_valid_slice_count():
+    slice_logits = torch.tensor(
+        [
+            [[2.0], [2.0], [1000.0], [1000.0]],
+            [[2.0], [2.0], [2.0], [2.0]],
+        ]
+    )
+    mask = torch.tensor(
+        [
+            [True, True, False, False],
+            [True, True, True, True],
+        ]
+    )
+    pooled = mil_3d.log_sum_exp_pool(
+        slice_logits,
+        mask=mask,
+        normalize=True,
+    )
+    assert torch.allclose(pooled, torch.full_like(pooled, 2.0))
+
+
 def test_mil_model_returns_volume_and_slice_outputs(monkeypatch):
     monkeypatch.setattr(
         mil_3d,

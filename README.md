@@ -1,487 +1,156 @@
-# SKPv2
+# CT Cervical Spine Fracture Detection
 
-SKPv2 is a personal deep learning experiment framework for rapid prototyping.
-It is designed to be cloned at the start of a new experiment, edited directly,
-and kept flexible enough for Kaggle-style iteration while still being readable
-and reproducible for company work.
+Reproducible training and inference for vertebral segmentation, cervical-spine
+fracture classification, and conditional fracture localization on the RSNA
+2022 CT dataset.
 
-The project intentionally uses Python config files. They are more verbose than
-YAML, but they make transforms, augmentations, loss composition, and small
-experiment-specific decisions explicit and inspectable.
+The final system predicts eight probabilities—overall fracture and C1 through
+C7—and produces a heatmap for a predicted fractured vertebra. It is split into
+two independently loadable model packages:
 
-## Quick Start
+- **C1-C7 segmentation:** a five-fold X3D-S ensemble used to identify and crop
+  individual vertebrae;
+- **fracture prediction and localization:** d32 and 3x32 MaxViT-Tiny MIL
+  families, four series-level sequence heads, and two binary localization
+  decoder ensembles.
 
-```bash
-git clone <repo-url> my-experiment
-cd my-experiment
-uv sync --group train --group dev
-uv run pytest
-```
+This is research software, not a medical device. It has not been externally or
+clinically validated and must not be used as the sole basis for diagnosis,
+triage, or treatment.
 
-Copy `.env.example` to `.env` and define a non-local `MLFLOW_TRACKING_URI` plus
-any required credentials. Normal training fails before launch if that backend is
-missing or unreachable. Local tracking requires explicit per-launch
-authorization with `--allow_local_mlflow`.
+## Results
 
-Copy one of the starter configs from `src/skp/configs/templates/` into
-`src/skp/configs/`, edit the data paths and experiment settings, then run:
+Five-fold out-of-fold evaluation on all 2,019 competition training studies:
 
-```bash
-uv run skp-train my_config --accelerator cuda
-```
+| Metric | Final ensemble |
+|---|---:|
+| Competition weighted log loss | **0.25981** |
+| Overall fracture AUC | **0.93930** |
+| Macro C1-C7 AUC | **0.94087** |
 
-CUDA training defaults to all visible GPUs (`--devices -1`). Use
-`--devices 1 --strategy auto` for a single-GPU run.
+The final prediction is the equal probability mean of four raw/no-projection
+series heads: d32 7x1, d32 7x32, 3x32 7x1, and 3x32 7x32. The public OOF CLI
+reproduces the historical AUCs exactly and the weighted loss within `3e-10`.
 
-For two-GPU DDP:
+See [results](docs/RESULTS.md) and the complete
+[experiment history](docs/EXPERIMENT_HISTORY.md).
 
-```bash
-uv run skp-train my_config --accelerator cuda --devices 2 --strategy ddp
-```
-
-The CLI validates CUDA availability, visible device count, NCCL availability,
-and SyncBatchNorm compatibility before the Lightning trainer starts.
-
-For a CPU smoke test, use:
-
-```bash
-uv run skp-train my_config \
-  --devices 1 \
-  --strategy auto \
-  --accelerator cpu \
-  --no_sync_batchnorm \
-  --debug
-```
-
-For a complete toy example using ImageWoof, see `QUICK_START.md`.
-
-## Using SKPv2 For New Projects
-
-The recommended workflow is to treat SKPv2 as a project template, not as a
-third-party library dependency.
-
-For a new experiment or company project:
-
-```bash
-git clone <skpv2-template-url> my-new-project
-cd my-new-project
-git remote rename origin template
-git remote add origin <new-project-repo-url>
-uv sync --group train --group dev
-```
-
-Then edit the cloned repository directly. This gives each experiment its own
-configs, datasets, custom losses, custom metrics, and project-specific
-dependencies without forcing those details back into the reusable template.
-
-Why not install SKPv2 as an editable package from another repo? You can, but it
-is usually worse for rapid experimentation. Most real experiments need small
-changes to datasets, models, tasks, and configs. Keeping the code in the project
-repo makes those changes visible, versioned, and easy to ship with the model.
-
-Why not copy only `src/skp` into a new repo? That works, but cloning the full
-template is safer because it keeps tests, README guidance, uv metadata,
-dependency groups, templates, and decision history together.
-
-## Project Documentation Contract
-
-Every repository cloned from SKPv2 keeps three complementary documentation
-records:
-
-| File | Scope | Primary purpose |
-|---|---|---|
-| `DECISIONS.md` | SKPv2 template/framework | Why the reusable framework and template changed |
-| `docs/EXPERIMENT_HISTORY.md` | Current experiment/project | What ran, its configuration, result, and disposition |
-| `docs/DECISION_LOG.md` | Current experiment/project | Detailed reasoning, evidence, alternatives, tradeoffs, and consequences |
-
-`docs/DECISION_LOG.md` is explicitly **not** a replacement for the root
-`DECISIONS.md`. A cloned project inherits `DECISIONS.md` as framework history;
-project-specific modeling, data, evaluation, and release decisions belong in
-`docs/DECISION_LOG.md`.
-
-Experiment History and the project Decision Log are complementary and should
-overlap when useful. A consequential experiment will commonly have a concise
-tracking entry in `EXPERIMENT_HISTORY.md` and a more detailed analytical entry
-in `DECISION_LOG.md`.
-
-Both project documents are required. The normal test suite checks that they
-exist, retain their documentation-contract markers, link to each other, and
-preserve the distinction from template-level decisions. Replace their starter
-content as the project develops, but retain the marker comments at the top.
-
-Root `AGENTS.md` provides the corresponding agent workflow: bootstrap an empty
-directory, inspect the framework and project data comprehensively, preserve
-these documentation scopes, validate MLflow before launch, and verify changes.
-
-## Environment Strategy
-
-Each experiment should own its own uv environment and lockfile. Start from the
-template dependency groups, then add project-specific packages in the experiment
-repo:
-
-```bash
-uv sync --group train --group dev
-uv add some-project-package
-uv add --group medical pydicom
-```
-
-Use dependency groups to avoid making every project install every optional
-stack:
-
-- `dev`: tests and linting.
-- `train`: core training stack.
-- `medical`: MONAI/DICOM-related tooling.
-- `video`: optional video backbones.
-- `wds`: WebDataset support.
-
-If a dependency is broadly useful for future experiments, add it to the template
-and document why in `DECISIONS.md`. If it is only needed for one project, keep it
-in that project's `pyproject.toml`.
-
-The core training environment is pinned to the official PyTorch CUDA 12.4 wheel
-family: `torch==2.6.0+cu124` and `torchvision==0.21.0+cu124`. The uv source
-mapping uses the PyTorch CUDA 12.4 index only for those packages; everything
-else resolves from PyPI.
-
-For CUDA runs, `skp-train` applies a GCP GPU environment cleanup that forces
-NCCL onto the socket backend and removes inherited `LD_LIBRARY_PATH` before
-trainer validation. Override the socket interface with:
-
-```bash
-NCCL_SOCKET_IFNAME=ens uv run skp-train ...
-```
-
-Disable it entirely with:
-
-```bash
-GCP_NCCL_SOCKET_HACK_DISABLE=1 uv run skp-train ...
-```
-
-## MLflow Launch Safety
-
-MLflow tracking is fail-closed. Before generating the run directory or
-initializing training, `skp-train`:
-
-1. resolves `cfg.mlflow_tracking_uri` or `MLFLOW_TRACKING_URI` (the workstation
-   example uses `http://127.0.0.1:5001`);
-2. rejects missing, file-based, and SQLite tracking as implicit local storage;
-3. queries non-local backends through the MLflow client; and
-4. aborts if the backend is unreachable.
-
-Start or repair the tracking server before retrying. If local tracking is
-deliberately acceptable for one launch, authorize it explicitly:
-
-```bash
-uv run skp-train my_config ... --allow_local_mlflow
-```
-
-If a remote URI is configured but unreachable, that flag uses an explicit local
-fallback under the experiment save directory and emits a prominent warning.
-The flag is intentionally CLI-only so permission does not silently persist into
-future runs. `--dry_run` remains an explicitly local temporary diagnostic mode.
-
-## Updating The Template From A Project
-
-Most useful template improvements are discovered during real experiments. The
-cleanest way to send them back is to keep the template as an upstream remote in
-each project.
-
-Suggested remote layout inside an experiment repo:
-
-```bash
-git remote -v
-# origin    <project repo>
-# template  <SKPv2 template repo>
-```
-
-When you fix something reusable in a project:
-
-1. Decide whether it is template-worthy. Good candidates are bug fixes,
-   reusable datasets/tasks/losses/metrics, docs, tests, and dependency cleanup.
-   Project-specific configs, labels, paths, private data logic, and competition
-   tricks should usually stay in the project.
-2. Put reusable changes on a small branch, separated from experiment-specific
-   work when possible.
-3. Cherry-pick or patch that branch into the SKPv2 template repo.
-4. Add or update tests in the template.
-5. Record the reusable template/framework decision in `DECISIONS.md`. Do not
-   put the downstream project's modeling decisions there; those belong in that
-   project's `docs/DECISION_LOG.md`.
-6. Pull the template changes back into active projects when useful.
-
-For small useful changes that are not urgent, write a short note in
-`TEMPLATE_BACKLOG.md` instead of pushing a tiny template commit immediately.
-Batch those items into a periodic template update once a few have accumulated
-or once one becomes important for active work.
-
-Useful commands:
-
-```bash
-# In the experiment repo, inspect reusable commits.
-git log --oneline
-
-# In the SKPv2 template repo, bring over a reusable fix.
-git cherry-pick <commit-sha>
-
-# In an experiment repo, pull template improvements back in.
-git fetch template
-git merge template/main
-```
-
-If a change mixes reusable and project-specific edits, prefer making a clean
-patch manually in the template rather than cherry-picking the whole commit.
-
-When several experiment repos are active at the same time, treat the SKPv2
-template repo as the single source of truth for reusable framework code. Each
-project can move at its own pace:
-
-```bash
-# In a project repo, pull the latest reusable template changes when ready.
-git fetch template
-git merge template/main
-```
-
-Do not automatically push every project fix back into the template. First decide
-whether the change is broadly reusable, then port it back intentionally with a
-small commit, tests, and a `DECISIONS.md` note when the change affects project
-direction.
-
-There is intentionally no built-in `update-template` command yet. Git already
-handles fetches, merges, cherry-picks, and patches well, and template updates
-often require human judgment about whether code is reusable or project-specific.
-A future helper command may be useful if it stays thin, for example to inspect
-template drift or generate a patch, but it should not hide merge decisions.
-
-## Project Layout
+## Architecture
 
 ```text
-src/skp/
-  callbacks/      Lightning callbacks: EMA, MLflow system monitor, GPU stats.
-  configs/        Strict Python configs, defaults, and starter templates.
-  datasets/       Reusable dataset classes plus copy/paste templates.
-  losses/         Core classification, segmentation, combined, and optional MONAI losses.
-  metrics/        Explicit custom metric implementations.
-  models/         Classification, segmentation, pretraining, decoders, and templates.
-  optim/          Optimizer construction, parameter groups, LR schedulers.
-  tasks/          LightningModule wrappers and training dataloader/sampler policy.
-  toolbox/        Optional analysis/preprocessing utilities outside the core train path.
-  search.py       Lightweight built-in Halton-style hyperparameter search helpers.
-  runners.py      Optional progressive-resize and hyperparameter-sweep runners.
-  train.py        Main training entry point.
+DICOM CT
+  -> WL400/WW1800 windowing
+  -> C1-C7 segmentation ensemble
+  -> native-depth C1-C7 crops
+  -> d32 + 3x32 vertebra MIL models
+  -> 7x1 + 7x32 series heads
+  -> overall/C1-C7 probabilities
+  -> conditional d32 + 3x32 fracture heatmaps
 ```
 
-## Config Philosophy
+The classifier is image-only. It does not use acquisition metadata. Individual
+MIL inputs contain three CT channels and the target vertebra's soft mask.
 
-Configs are strict namespaces. Accessing a missing attribute raises
-`AttributeError`; optional values should use `cfg.get("name", default)`.
+See the detailed [pipeline contract](docs/PIPELINE.md) and the authoritative
+machine-readable [`final-v1` manifest](release/final-v1.json).
 
-The normal pattern is:
+## Install
 
-```python
-from skp.configs import Config
-from skp.configs.defaults import runtime_defaults, dataloader_defaults
-
-cfg = Config()
-runtime_defaults(cfg)
-dataloader_defaults(cfg)
-
-cfg.project = "my_experiment"
-cfg.task = "classification"
-cfg.model = "classification.net2d"
-cfg.dataset = "simple2d"
-cfg.split_column = "fold"
-cfg.fold = 0
-```
-
-Defaults are applied first, and experiment-specific overrides are written below.
-This keeps templates compact while avoiding silent `None` values for forgotten
-settings. Field explanations live in `CONFIG_FIELD_DOCS` inside
-`src/skp/configs/defaults.py`.
-
-Core config groups:
-
-- `runtime_defaults`: save paths, MLflow, checkpointing, EMA, debug/profile flags.
-- `dataloader_defaults`: worker counts, samplers, WebDataset toggles, inference transforms.
-- `classification_2d_defaults`: backbone loading, pooling, MixUp, sampling columns.
-- `segmentation_2d_defaults`: decoder options, deep supervision, sliding-window validation.
-- `cls_seg_2d_defaults`: joint segmentation/classification extras.
-- `segmentation_3d_defaults`: 3D decoder/backbone options, stochastic heads, MONAI mixing.
-
-## Dataset Splits
-
-Every train/val/test dataset config must explicitly set `cfg.split_column`.
-Inference mode reads the full annotation file and does not require a split.
-
-For k-fold training, point `cfg.split_column` at the fold column and set the held
-out fold:
-
-```python
-cfg.split_column = "fold"
-cfg.fold = 0
-```
-
-SKPv2 trains on rows where `fold != cfg.fold`; validation and test modes use
-rows where `fold == cfg.fold`.
-
-For fixed splits, define mutually exclusive values for each mode:
-
-```python
-cfg.split_column = "split"
-cfg.train_split_values = "train"
-cfg.val_split_values = ["val", "valid"]
-cfg.test_split_values = "test"
-```
-
-The split helper raises clear errors if the split column is missing, fixed split
-values overlap, a fixed split mode is not defined, or a selected subset is empty.
-
-## Starter Configs
-
-Available templates:
-
-- `classification_2d.py`
-- `segmentation_2d.py`
-- `cls_seg_2d.py`
-- `segmentation_3d.py`
-
-They are intentionally plain Python files. Copy one, rename it, and edit it
-directly. Dataset and model templates also exist under `datasets/templates`,
-`models/templates`, `losses/templates`, and `metrics/templates`.
-
-## Training Flow
-
-`skp.train` performs the main orchestration:
-
-1. Parse CLI args and config overrides.
-2. Import `skp.configs.<config_name>.cfg`.
-3. Build model, loss, datasets, optimizer, scheduler, metrics, and task.
-4. Build a Lightning `Trainer`.
-5. Train, checkpoint, symlink `best.ckpt`, and save EMA weights if enabled.
-
-Task files are LightningModule wrappers. Datasets define sample loading; tasks
-own training-time policy such as samplers and dataloader construction. This is
-why `samplers.py` lives under `tasks/`.
-
-## Slice-Wise 3D MIL
-
-`classification.mil_3d` supports volume-level supervision when slice labels are
-not available. It expects `batch["x"]` in `(B, C, D, H, W)` format, where `D`
-is the slice axis and `C` may contain multiple adjacent slices. A shared 2D timm
-backbone encodes each slice, a linear head produces per-slice class logits, and
-Log-Sum-Exp pooling produces the volume logits used by the standard
-classification task.
-
-```python
-cfg.model = "classification.mil_3d"
-cfg.num_input_channels = 3
-cfg.num_classes = 4
-cfg.mil_pool_temperature = 1.0
-cfg.mil_pool_normalize = True
-```
-
-The model always returns volume-level `logits` and pseudolabel-ready
-`slice_logits` with shape `(B, D, num_classes)`. Pass a boolean `(B, D)` tensor
-as `batch["mask"]` for padded variable-length volumes. Set
-`return_features=True` to also receive `slice_features`.
-
-Length-normalized Log-Mean-Exp is the default because raw Log-Sum-Exp shifts
-volume logits as the number of valid slices changes. Set
-`cfg.mil_pool_normalize = False` when raw Log-Sum-Exp is explicitly desired.
-
-## CLI Overrides
-
-Unknown CLI args are interpreted as config overrides:
+Python 3.11 and CUDA 12.4 were used for the reference runs.
 
 ```bash
-uv run skp-train my_config --optimizer_params.lr 1e-4 --batch_size 16
+git clone https://github.com/i-pan/ct-cspine-fracture-detection.git
+cd ct-cspine-fracture-detection
+uv sync --locked --group train --group dev --group medical --group video
 ```
 
-Nested dictionary keys use dot notation for CLI overrides. Built-in sweeps use
-double underscores for nested dictionaries, for example
-`optimizer_params__lr`.
+## End-to-end inference
 
-## Logging And Outputs
-
-MLflow is the only experiment logger. Each config must explicitly set
-`cfg.project`, which becomes the MLflow experiment name. This avoids cloned
-projects silently logging every run to a generic template experiment.
-
-Remote tracking can be configured with environment variables, either exported in
-the shell or loaded from a local `.env` file:
+Once the two Hugging Face model directories are available:
 
 ```bash
-cp .env.example .env
-# Edit .env with MLFLOW_TRACKING_URI and credentials when needed.
+uv run cspine-predict /path/to/one/dicom-series \
+  --segmenter /path/or/hf-id/cspine-segmentation \
+  --predictor /path/or/hf-id/cspine-fracture-classifier \
+  --output ./prediction
 ```
 
-By default, local outputs are written under:
-
-```text
-experiments/<config_name>/<run_id>/fold<fold>/
-```
-
-Run IDs use the human-readable `petname` format `<word>-<word>-<4digit_int>`,
-for example `silver-lake-0427`. MLflow run names use
-`<config_name>/<run_id>` so shared experiments can be scanned by config.
-Fixed-split runs without `cfg.fold` use:
-
-```text
-experiments/<config_name>/<run_id>/fixed_split/
-```
-
-Checkpoints are saved under `checkpoints/`, with `best.ckpt` symlinked to the
-best monitored checkpoint.
-
-## Optional Features
-
-MONAI is optional and only required when enabling MONAI-backed losses,
-3D MixUp/CutMix, or sliding-window inference.
-
-WebDataset is optional and only imported when `cfg.wds = True`.
-
-DICOM utilities live under `skp.toolbox.dicom` and lazily require `pydicom`.
-`dicomsdl` is supported as an optional faster backend when installed.
-
-Progressive resizing and built-in hyperparameter sweeps are available but live
-outside the main training path in `skp.runners`.
-
-To build every supported optional path into the environment, run:
-
-```bash
-uv sync --all-groups
-```
-
-## Hyperparameter Sweeps
-
-Set `cfg.hyperparameter_sweep` to enable the lightweight built-in runner:
+Python usage:
 
 ```python
-cfg.hyperparameter_sweep = {
-    "num_trials": 8,
-    "optimizer_params__lr": {"min": 1e-5, "max": 1e-3, "scaling": "log"},
-    "batch_size": {"feasible_points": [8, 16, 32]},
-}
+from skp.cspine.pipeline import (
+    CervicalSpineFracturePredictor,
+    CervicalSpinePipeline,
+    CervicalSpineSegmenter,
+)
+
+segmenter = CervicalSpineSegmenter.from_pretrained(
+    "/path/or/hf-id/cspine-segmentation", device="cuda"
+)
+predictor = CervicalSpineFracturePredictor.from_pretrained(
+    "/path/or/hf-id/cspine-fracture-classifier", device="cuda"
+)
+pipeline = CervicalSpinePipeline(segmenter, predictor)
+series, segmentation, result = pipeline("/path/to/one/dicom-series")
+result.save("./prediction")
+print(result.probabilities)
 ```
 
-This is intentionally simple. For large distributed tuning jobs, prefer an
-external orchestrator and pass CLI overrides into `skp-train`.
+See [inference documentation](docs/INFERENCE.md) for heatmap restoration and
+the supported input contract.
 
-## Tests
+## Full reproduction
 
-Run:
+Users must accept the Kaggle competition rules and download the public dataset
+themselves. No DICOMs, PNGs, NIfTI files, masks, or generated annotations are
+distributed in this repository.
+
+The complete path from the Kaggle data to the final two Hugging Face packages
+is documented in [REPRODUCE.md](docs/REPRODUCE.md). It covers:
+
+1. deterministic DICOM windowing and study-level folds;
+2. a pinned TotalSegmentator 2.16.0 teacher environment;
+3. segmentation pseudo-label pretraining and manual fine-tuning;
+4. fold-safe OOF masks and native-depth vertebral crops;
+5. d32 and 3x32 MIL training;
+6. localization training;
+7. frozen feature extraction and four series heads;
+8. OOF metric reproduction and SafeTensor export.
+
+Dataset layout, expected counts, and leakage constraints are in
+[DATA.md](docs/DATA.md).
+
+## Reproducibility notes
+
+- `release/final-v1.json` selects every config, run, checkpoint state, fold
+  exception, and ensemble member.
+- Segmentation, MIL, and localization release weights use EMA; series heads use
+  their raw model state.
+- Pretrained X3D code comes from the lockfile-pinned `pytorchvideo` package,
+  rather than mutable Torch Hub source. Initialization hashes are recorded.
+- Published SafeTensors are hashed and verified before loading.
+- The original research runs did not consistently set random seeds. Published
+  weights are exact artifacts; fresh retraining is expected to reproduce
+  performance within normal stochastic variation, not identical file hashes.
+- Normal training requires a reachable MLflow server and fails closed if it is
+  unavailable.
+
+## Development
 
 ```bash
-uv run pytest
+uv run pytest -q
+uv run ruff check .
+git diff --check
 ```
 
-The current tests cover strict configs, default docs, dataset helpers, search
-generation, schedulers, samplers/dataloaders, task base behavior, and toolbox
-array helpers. GPU training integration tests are not included yet.
+Project-specific reasoning is recorded in
+[DECISION_LOG.md](docs/DECISION_LOG.md). Historical and ablation configs remain
+available under `src/skp/configs/`; only components named by the release
+manifest are part of `final-v1`.
 
-## Development Notes
+## License and data terms
 
-- Keep experiment-specific files out of the reusable core.
-- Prefer copyable templates over deep inheritance.
-- Use `cfg.get(...)` only for genuinely optional settings.
-- Keep MONAI, WebDataset, pydicom, and dicomsdl optional.
-- Record shared cleanup decisions in `DECISIONS.md`.
+Source code is licensed under [Apache-2.0](LICENSE). The RSNA/Kaggle dataset is
+governed separately by the competition rules and is not redistributed here.
+Model weights and outputs are for research use and inherit the limitations
+described in their model cards.

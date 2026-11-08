@@ -29,6 +29,7 @@ from skp.callbacks import (
     EMACallback,
     FinalCheckpointCallback,
     GPUStatsLogger,
+    HaltonPruningCallback,
     MLFlowSystemMonitorCallback,
 )
 from skp.configs.base import Config
@@ -417,6 +418,14 @@ def get_trainer(cfg: Config) -> Tuple[lightning.Trainer, Config]:
         )
         callbacks.append(early_stopping)
 
+    if cfg.get("halton_pruning"):
+        pruning = dict(cfg.halton_pruning)
+        _print_rank_zero(
+            ">> Using matched-epoch Halton pruning at "
+            f"{sorted(int(epoch) for epoch in pruning['margins'])} epochs."
+        )
+        callbacks.append(HaltonPruningCallback(**pruning))
+
     # make copy of args dictionary for strategy
     args_dict = copy.deepcopy(cfg.args)
     args_dict["sync_batchnorm"] = not args_dict.pop("no_sync_batchnorm", False)
@@ -674,6 +683,8 @@ def main():
     kfold = args.__dict__.pop("kfold")
 
     cfg = load_config(args, overwrite_args)
+    if cfg.get("seed") is not None:
+        lightning.seed_everything(int(cfg.seed), workers=True)
     cfg.overwrite_run = args.__dict__.pop("overwrite_run")
     cfg.double_cv = args.__dict__.pop("double_cv")
     cfg.world_size = args.num_nodes * (args.devices if args.devices else 1)

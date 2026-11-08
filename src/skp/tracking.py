@@ -36,7 +36,8 @@ def is_local_tracking_uri(tracking_uri: str | None) -> bool:
 
 
 def _local_fallback_uri(save_dir: str | Path) -> str:
-    return (Path(save_dir).resolve() / "mlruns").as_uri()
+    database = Path(save_dir).resolve() / "mlflow.db"
+    return f"sqlite:///{database.as_posix()}"
 
 
 def validate_mlflow_tracking(
@@ -55,7 +56,8 @@ def validate_mlflow_tracking(
     requires the same per-launch opt-in.
     """
     if dry_run:
-        return (Path(save_dir).resolve() / "mlflow_dry_run").as_uri()
+        database = Path(save_dir).resolve() / "mlflow_dry_run.db"
+        return f"sqlite:///{database.as_posix()}"
 
     normalized = tracking_uri.strip() if tracking_uri else None
     if is_local_tracking_uri(normalized):

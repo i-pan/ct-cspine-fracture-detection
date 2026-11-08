@@ -49,3 +49,23 @@ def test_get_scheduler_enforces_max_lr_matches_optimizer_lr():
 def test_get_scheduler_returns_none_when_disabled():
     optimizer = torch.optim.AdamW(torch.nn.Linear(2, 1).parameters(), lr=0.1)
     assert get_scheduler(Config(scheduler=None), optimizer) is None
+
+
+def test_get_scheduler_can_use_a_longer_reference_horizon():
+    model = torch.nn.Linear(2, 1)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.1)
+    cfg = Config(
+        scheduler="LinearWarmupCosineAnnealingLR",
+        scheduler_params={"pct_start": 0.1},
+        num_iterations_per_epoch=5,
+        batch_size=2,
+        world_size=1,
+        n_train=10,
+        accumulate_grad_batches=1,
+        num_epochs=8,
+        scheduler_num_epochs=12,
+    )
+
+    scheduler = get_scheduler(cfg, optimizer)
+
+    assert scheduler.total_steps == 60

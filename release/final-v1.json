@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "release_id": "final-v1",
+  "status": "candidate",
+  "source_repository": "https://github.com/i-pan/ct-cspine-fracture-detection",
+  "source_revision": null,
+  "license": "Apache-2.0",
+  "pretrained_initialization": {
+    "totalsegmentator_total_vertebrae": {
+      "provider": "TotalSegmentator==2.16.0 task=total Dataset292",
+      "checkpoint_sha256": "7022f71829ef00aa14d790a7667bc18eb1691f2fe5b0a38c475862abc84c2457",
+      "plans_sha256": "72fcde2fa59183f65b92fc86a12467acd81511d93d8d2577608550ad0c1938cd",
+      "dataset_json_sha256": "5c967bfe82c846a6491473706e3c5d322f470ed4fce2eb5047a22c702ae64c79"
+    },
+    "x3d_s": {
+      "provider": "pytorchvideo==0.1.5",
+      "state_dict_sha256": "3653641a341a2d157042e7d226786ef2ba67f4620451e2d13af8105b5c1190ab"
+    },
+    "maxvit_tiny_tf_384.in1k_4ch": {
+      "provider": "timm==1.0.27",
+      "state_dict_sha256": "d361fc543db2f5076adbca382a65e8620ef09de8e93a6ed060cd86112d94f20f"
+    }
+  },
+  "dataset": {
+    "name": "RSNA 2022 Cervical Spine Fracture Detection",
+    "user_supplied": true,
+    "expected_train_studies": 2019,
+    "expected_train_slices": 711601,
+    "folds": 5,
+    "fold_seed": 2022,
+    "manual_segmentation_studies": 87,
+    "bounding_box_studies": 235
+  },
+  "selected_pipeline": {
+    "segmentation": {
+      "config": "cspine_segmentation_x3d_s_totalseg_finetune",
+      "run_root": "cspine_segmentation_x3d_s_totalseg_finetune/cspine-seg-x3ds-ts-finetune-v1",
+      "folds": [0, 1, 2, 3, 4],
+      "checkpoint": "best.ckpt",
+      "checkpoint_state": "ema"
+    },
+    "families": {
+      "d32": {
+        "crop_tensor": "d32",
+        "mil": {
+          "config": "cspine_vertebra_mil_maxvit_tiny_d32_close_square",
+          "run_root": "cspine_vertebra_mil_maxvit_tiny_d32_close_square/cspine-vertebra-maxvitt-mil-d32-close-square-imageonly-bs2-v1",
+          "checkpoint_state": "ema"
+        },
+        "localizer": {
+          "config": "cspine_fracture_localization_d32",
+          "run_root": "cspine_fracture_localization_d32/cspine-localize-d32-frozen-mil-binary-v1",
+          "checkpoint_state": "ema"
+        },
+        "series_7x1": {
+          "config": "cspine_series_d32_no_projection",
+          "run_root": "cspine_series_d32_no_projection/series-d32-raw-v1",
+          "checkpoint_state": "model"
+        },
+        "series_7x32": {
+          "config": "cspine_series_7x32_d32_no_projection",
+          "run_root": "cspine_series_7x32_d32_no_projection/series-7x32-d32-raw-v1",
+          "checkpoint_state": "model"
+        }
+      },
+      "3x32": {
+        "crop_tensor": "stack3",
+        "mil": {
+          "config": "cspine_vertebra_mil_maxvit_tiny_d32_stack3",
+          "run_root": "cspine_vertebra_mil_maxvit_tiny_d32_stack3/cspine-vertebra-maxvitt-mil-d32-stack3x96-imageonly-bs2-v1",
+          "fold_overrides": {
+            "4": "cspine_vertebra_mil_maxvit_tiny_d32_stack3_loaderfix/cspine-vertebra-maxvitt-mil-d32-stack3x96-imageonly-fold4-loaderfix-v1"
+          },
+          "checkpoint_state": "ema"
+        },
+        "localizer": {
+          "config": "cspine_fracture_localization_3x32",
+          "run_root": "cspine_fracture_localization_3x32/cspine-localize-3x32-frozen-mil-binary-v1",
+          "checkpoint_state": "ema"
+        },
+        "series_7x1": {
+          "config": "cspine_series_3x32_no_projection",
+          "run_root": "cspine_series_3x32_no_projection/series-3x32-raw-v1",
+          "checkpoint_state": "model"
+        },
+        "series_7x32": {
+          "config": "cspine_series_7x32_3x32_no_projection",
+          "run_root": "cspine_series_7x32_3x32_no_projection/series-7x32-3x32-raw-v1",
+          "checkpoint_state": "model"
+        }
+      }
+    },
+    "series_ensemble": {
+      "members": [
+        "d32.series_7x1",
+        "d32.series_7x32",
+        "3x32.series_7x1",
+        "3x32.series_7x32"
+      ],
+      "fold_aggregation": "mean_probability",
+      "member_aggregation": "equal_mean_probability"
+    }
+  },
+  "expected_intermediate_counts": {
+    "teacher_raw": 1932,
+    "teacher_qc": 1931,
+    "native_depth_vertebra_crops": 14126,
+    "localization_samples_d32": 457,
+    "localization_samples_3x32": 457
+  },
+  "reported_oof_metrics": {
+    "competition_weighted_log_loss": 0.2598087693,
+    "overall_auc": 0.9392960625,
+    "macro_c1_c7_auc": 0.940865817
+  }
+}
