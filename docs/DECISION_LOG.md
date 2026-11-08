@@ -611,8 +611,8 @@ artifacts. The release path now fails on stale export outputs, verifies
 SafeTensor hashes at load time, and uses a pinned local `pytorchvideo` package
 whose X3D initialization is byte-identical to the previously cached Torch Hub
 state. These results support the manifest as the authoritative selection
-contract; source revision and final HF repository IDs remain intentionally
-unset until the public commit exists.
+contract. Functional source revision `3d9d8946d6b86692d372efbb3630099c7db49611`
+is now recorded; final HF repository IDs remain intentionally unset.
 
 ## Decision-entry template
 
