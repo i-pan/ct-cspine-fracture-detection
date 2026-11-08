@@ -3,7 +3,7 @@
   "release_id": "final-v1",
   "status": "candidate",
   "source_repository": "https://github.com/i-pan/ct-cspine-fracture-detection",
-  "source_revision": "6446a646d4d13a888d2ff4e353eb7f5027b88428",
+  "source_revision": "808faf72dd9efbfea32ccc72ec2fc33687f17d8e",
   "license": "Apache-2.0",
   "pretrained_initialization": {
     "totalsegmentator_total_vertebrae": {
