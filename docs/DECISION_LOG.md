@@ -492,7 +492,7 @@ large segmentation ensemble to the already large fracture artifact.
 
 ### Evidence
 
-The segmentation student reaches 0.8078 mean fold-best Dice and is sufficient
+The segmentation student reaches 0.8037 mean re-evaluated EMA Dice and is sufficient
 for crop construction. The selected equal-probability ensemble of the four raw
 series architectures reaches 0.25981 OOF competition loss, 0.93930 overall AUC,
 and 0.94087 macro C1-C7 AUC. The d32/3x32 localization ensemble is stronger than
@@ -561,7 +561,10 @@ study `1.2.826.0.1.3680043.20574`.
 
 Segmentation checkpoints contain distinct raw and EMA states. Validation swaps
 in EMA weights, so exporting raw weights does not reproduce the state used for
-checkpoint selection or the reported validation metric.
+checkpoint selection. A matched five-fold evaluation found 0.80367 mean Dice
+for EMA and 0.80315 for raw weights; EMA won four folds. This evaluation also
+identified and corrected the older 0.8078 documentation summary, which did not
+match the selected checkpoint logs (0.80328 mean).
 
 ### Alternatives considered
 

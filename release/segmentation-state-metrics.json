@@ -1,0 +1,36 @@
+{
+  "evaluation": "C1-C7 mean Dice on each fold's manual-label validation subset",
+  "checkpoint_selection_state": "ema",
+  "folds": {
+    "0": {
+      "studies": 18,
+      "raw_dice": 0.8188875010,
+      "ema_dice": 0.8195461156
+    },
+    "1": {
+      "studies": 17,
+      "raw_dice": 0.8092996880,
+      "ema_dice": 0.8101735624
+    },
+    "2": {
+      "studies": 17,
+      "raw_dice": 0.7814587424,
+      "ema_dice": 0.7824939128
+    },
+    "3": {
+      "studies": 17,
+      "raw_dice": 0.8005489990,
+      "ema_dice": 0.8004560273
+    },
+    "4": {
+      "studies": 18,
+      "raw_dice": 0.8055459023,
+      "ema_dice": 0.8056757152
+    }
+  },
+  "mean_raw_dice": 0.8031481665,
+  "mean_ema_dice": 0.8036690666,
+  "ema_minus_raw_dice": 0.0005209001,
+  "ema_fold_wins": 4,
+  "raw_fold_wins": 1
+}

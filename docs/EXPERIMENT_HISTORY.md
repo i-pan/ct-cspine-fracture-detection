@@ -22,7 +22,7 @@ Template-framework decisions belong in the repository-root
 |---|---|---|---|
 | C1-C7 segmentation baseline | `cspine_segmentation_x3d_s`, 128-cube, five folds | Dice 0.6745 mean across fold-best checkpoints | Retain as manual-only baseline |
 | TotalSegmentator teacher benchmark | v2.16.0 `total`, 1.5 mm, resampling order 3 | Dice 0.8940 +/- 0.0170 on all 87 manual masks | Generate compact pseudo-label cache |
-| Pseudo-label segmentation student | TotalSegmentator pretraining plus manual fine-tuning, five folds | Dice 0.8078 mean across fold-best checkpoints | Sufficiently fast crop localizer; teacher remains the quality ceiling |
+| Pseudo-label segmentation student | TotalSegmentator pretraining plus manual fine-tuning, five folds | Re-evaluated mean EMA Dice 0.8037; raw 0.8031 | Sufficiently fast crop localizer; teacher remains the quality ceiling |
 | Fracture MIL, adjacent-slice depth 32 | Image-only close-square MaxViT-Tiny, five folds | Mean macro AUC 0.9350 +/- 0.0126; overall AUC 0.9434 +/- 0.0094 | Selected primary classifier |
 | Fracture MIL, 96 to 3x32 stack | Image-only close-square MaxViT-Tiny, five folds | Mean macro AUC 0.9299 +/- 0.0100; overall AUC 0.9393 +/- 0.0083 | Retain as complementary slice-localization model |
 | Weak slice localization | OOF depth-32 plus 3x32 native-grid ensemble on 235 boxed studies | Mean fold AUC 0.8905; AP 0.7366; within-study AUC 0.8688 | Strong pseudolabel signal; ensemble selected |
@@ -47,7 +47,7 @@ before treating small differences as stable.
 - **Localization is good enough to proceed.** The manual-only X3D-S segmenter
   reached mean Dice 0.6745. Full-resolution TotalSegmentator reached 0.8940 on
   the same 87 manual cases. A fold-safe student pretrained on 1,931 compact
-  pseudo-labels and then fine-tuned manually reached 0.8078. Manual fine-tuning
+  pseudo-labels and then fine-tuned manually reached 0.8037 mean EMA Dice. Manual fine-tuning
   improved the pseudo-pretrained fold mean only modestly (approximately 0.009),
   while the student is much faster than the teacher. Precise boundaries are not
   required for the current use: crop localization and a soft target-level mask.
@@ -661,7 +661,8 @@ successfully but underperformed. A failed launch is not architecture evidence.
   EMA segmentation, ten EMA MIL, ten EMA localization, and twenty raw series
   states. A clean temporary environment installed only the generated wheel and
   declared inference requirements and imported the complete inference stack.
-- Added a raw-versus-EMA segmentation evaluation CLI. The matched run remains
-  pending because both shared GPUs were above 95% utilization by unrelated
-  processes; no external workload was interrupted. EMA remains the candidate
-  state because it was used for validation and checkpoint selection.
+- Added a raw-versus-EMA segmentation evaluation CLI and ran it on all five
+  manual-label validation folds. EMA scored 0.80367 mean Dice versus 0.80315
+  for raw weights, winning four of five folds. This also corrected an older
+  0.8078 summary that was inconsistent with both the selected checkpoint logs
+  (0.80328 mean) and the matched re-evaluation. EMA remains the release state.

@@ -357,7 +357,8 @@ model's `SegmentationResult`.
 
 ## Evaluation
 
-Mean fold-best C1-C7 Dice: 0.8078 on the small manually segmented subset.
+Re-evaluated mean C1-C7 Dice: 0.8037 for EMA weights on the small manually
+segmented subset (raw weights: 0.8031).
 Full-resolution TotalSegmentator remains the teacher-quality ceiling.
 
 ## Limitations

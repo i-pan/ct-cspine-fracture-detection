@@ -20,7 +20,7 @@ largest aligned per-study probability difference was `1.19e-7`.
 | Component | Validation result |
 |---|---:|
 | TotalSegmentator teacher on 87 manual cases | Mean C1-C7 Dice 0.8940 |
-| Five-fold segmentation student | Mean fold-best Dice 0.8078 |
+| Five-fold segmentation student | Re-evaluated mean EMA Dice 0.8037 (raw 0.8031) |
 | d32 MIL | Overall AUC 0.9434; macro level AUC 0.9350 |
 | 3x32 MIL | Overall AUC 0.9393; macro level AUC 0.9299 |
 | d32/3x32 weak slice-logit ensemble | Mean fold slice AUC 0.8905 |
